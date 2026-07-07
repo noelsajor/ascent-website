@@ -2,7 +2,7 @@
 
 ## 📋 About This Solution
 
-This template captures the exact architecture behind the `ascent-web-test` project — a **production-grade, SEO-first marketing website** built for service and brand businesses that need to grow organically through search, content, and social media.
+This template captures the exact architecture behind the `ascent-website` project — a **production-grade, SEO-first marketing website** built for service and brand businesses that need to grow organically through search, content, and social media.
 
 ### What Problem Does This Solve?
 
