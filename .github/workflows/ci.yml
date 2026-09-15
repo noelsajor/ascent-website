@@ -1,0 +1,67 @@
+name: CI
+
+# Validates pull requests targeting main before merge. Intentionally build-only:
+# neither project has a lint config, a tsconfig.json, or any test files today, so
+# there is nothing meaningful for a typecheck/lint/test step to run yet (see the
+# security tracker's CI item for the follow-up). This does not duplicate Vercel's
+# own preview deployment checks — those aren't configured as required checks on
+# main, and this workflow additionally validates that the lockfile is not out of
+# sync with package.json (via --frozen-lockfile), which a successful deployment
+# doesn't guarantee.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-root:
+    name: Build (root site)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+  build-studio:
+    name: Build (Sanity Studio)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: studio/pnpm-lock.yaml
+
+      - name: Install dependencies (frozen lockfile)
+        working-directory: studio
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: studio
+        run: pnpm run build
