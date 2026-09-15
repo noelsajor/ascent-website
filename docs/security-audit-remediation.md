@@ -99,12 +99,12 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Upgraded `@astrojs/rss` from `^4.0.1` (resolved 4.0.15) to `^4.0.19` (patched) in `package.json`; regenerated `pnpm-lock.yaml`.
   - **Verification**: `pnpm audit` no longer reports `@astrojs/rss`; confirmed `dist/rss.xml` parses as valid XML after `pnpm run build`.
 
-- [ ] **Sitemap XML injection or malformed XML from CMS slugs**
+- [x] **Sitemap XML injection or malformed XML from CMS slugs**
   - **Severity**: Medium
-  - **Where**: `src/pages/sitemap.xml.js:29-36`
+  - **Where**: `src/pages/sitemap.xml.js`, `studio/schemas/post.js`
   - **Current danger**: CMS slugs are interpolated directly into XML. A malicious or malformed slug can corrupt the sitemap or inject extra XML nodes, affecting crawler behavior and SEO integrity.
-  - **Fix**: Validate Sanity slugs to safe URL path characters, URL-encode slug path segments, and XML-escape every interpolated XML value.
-  - **Verification**: A slug with XML-significant characters cannot be saved, or is encoded safely in generated sitemap XML.
+  - **Fix**: Added `Rule.required().custom(...)` validation to the `slug` field in `studio/schemas/post.js` restricting it to `^[a-z0-9]+(?:-[a-z0-9]+)*$` (lowercase letters, digits, hyphens only) — editors can no longer save a slug with XML/URL-breaking characters. Added `escapeXml()` plus `encodeURIComponent()` around the interpolated slug in `sitemap.xml.js` as defense in depth for any pre-existing data that predates the new validation.
+  - **Verification**: `pnpm run build` passes; `dist/sitemap.xml` still parses as valid XML. Tested the escaping directly against `a"><script>alert(1)</script><x y="&z` — output is fully percent-encoded with no raw `<`, `>`, `&`, or `"` surviving.
 
 - [ ] **Vision plugin enabled in all Studio environments**
   - **Severity**: Medium

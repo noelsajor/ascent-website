@@ -16,6 +16,13 @@ export default {
                 source: 'title',
                 maxLength: 96,
             },
+            validation: (Rule) =>
+                Rule.required().custom((slug) => {
+                    if (!slug || !slug.current) return 'Slug is required';
+                    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.current)
+                        ? true
+                        : 'Slug must contain only lowercase letters, numbers, and hyphens (e.g. "my-post-title") — no spaces or special characters.';
+                }),
         },
         {
             name: 'author',
