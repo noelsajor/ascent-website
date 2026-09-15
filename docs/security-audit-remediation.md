@@ -8,7 +8,7 @@ This is now substantially more complete, but it still cannot prove that these ar
 
 ## Status Summary (updated 2026-09-15)
 
-**Done (16 of 27 tracked items):** blog Portable Text XSS, JSON-LD script-breakout XSS, unprotected `main` branch, env-leak/`.gitignore` gap, GA-before-consent ordering, RSS XML injection, sitemap XML injection, duplicate Calendly script, obsolete `X-XSS-Protection`, missing `Permissions-Policy`, tracked Sanity runtime files, Astro generator disclosure, wildcard CORS (site + Studio), security.txt (confirmed live 200), public-site CSP (enforced, verified live in a real browser — zero violations across 3 page types), Dependabot + CI required checks (PR #8, build-only workflow, applies to Dependabot PRs too).
+**Done (17 of 31 tracked items — count includes the 2 items discovered during live CSP verification):** blog Portable Text XSS, JSON-LD script-breakout XSS, unprotected `main` branch, env-leak/`.gitignore` gap, GA-before-consent ordering, RSS XML injection, sitemap XML injection, duplicate Calendly script, obsolete `X-XSS-Protection`, missing `Permissions-Policy`, tracked Sanity runtime files, Astro generator disclosure, wildcard CORS (site + Studio), security.txt (confirmed live 200), public-site CSP (enforced, verified live in a real browser — zero violations across 3 page types), Dependabot + CI required checks (PR #8, build-only workflow, applies to Dependabot PRs too), Calendly inline widget empty (script ordering fix, `defer` added — pending live re-verification after merge).
 
 **Note on tooling access**: this session turned out to have more live access than initially assumed — outbound network access (`curl`), the Vercel API/CLI (project settings, deployment protection, DNS record management via `vercel dns`), `vercel curl` for testing protected preview deployments, and real-browser automation (Claude in Chrome, after working through a stuck extension connection) for actually checking console violations and rendered behavior. Several items previously marked "can't verify from this environment" have since been checked directly against production.
 
@@ -231,12 +231,12 @@ Found while doing the live CSP browser check below — neither is a code/securit
   - **Fix**: Log into the Cookiebot Manager, add `ascentmgnt.com` to domain group `58f15ed1-c576-4eef-b520-7d858bf813be`'s authorized domains list. Not a code change.
   - **Verification**: Reload the live site; the Cookiebot consent banner should appear; after accepting statistics, `gtag/js` and `google-analytics.com` collect requests should appear in the network tab.
 
-- [ ] **Calendly inline widget on /contact renders empty**
+- [x] **Calendly inline widget on /contact renders empty**
   - **Severity**: Low security, medium business integrity (same category as the fake contact form)
-  - **Where**: `src/components/Contact.astro`, live at `/contact`
-  - **Current danger**: The `.calendly-inline-widget` container renders with no iframe inside it — confirmed via the accessibility tree (no iframe element present) and via console (no CSP `frame-src` violation, so it isn't being blocked by the site's CSP). Visitors can't actually book a call through the embedded widget on this page.
-  - **Fix**: Needs investigation — check Calendly's own dashboard for domain/embed restrictions (same class of issue as the Cookiebot one), verify `widget.js` actually loaded and initialized, and check whether `hide_gdpr_banner=1` or the `data-url` value is valid.
-  - **Verification**: Reload `/contact`; the Calendly scheduler UI should render inside the widget container.
+  - **Where**: `src/components/Header.astro`
+  - **Root cause (code, not external)**: `widget.js` is loaded via a blocking, non-deferred `<script is:inline src="...">` inside `Header.astro`, which renders before `<main>` in the document. Confirmed via the built HTML that the script tag's byte offset (9111) comes before the `.calendly-inline-widget` div's offset (12126) in `dist/contact/index.html` — the script executes and runs Calendly's initial DOM scan for `.calendly-inline-widget` elements *before that div exists in the DOM*, so it's never found and no iframe gets created. Unlike the Cookiebot item, this is not an external account/dashboard problem — the markup itself (`class="calendly-inline-widget"`, `data-url`) exactly matches Calendly's documented embed convention.
+  - **Fix**: Added `defer` to the script tag. Deferred scripts execute after the full document is parsed (all elements exist) but before `DOMContentLoaded`, which resolves the ordering race without needing to relocate the script out of `Header.astro` or touch the popup-trigger logic (which already checks `window.Calendly` lazily at click time, not at page-load time, so it was never affected by this ordering issue).
+  - **Verification**: `pnpm run build` passes; confirmed `defer` is present on the script tag in the built HTML. Live re-verification pending merge to `main` (will reload `/contact` and confirm the Calendly scheduler iframe renders).
 
 ## Out-Of-Scope Validation Backlog
 
