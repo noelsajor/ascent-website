@@ -158,12 +158,12 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Added `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()` to both `vercel.json` and `studio/vercel.json`.
   - **Verification**: Confirmed the header in both config files; will show on live responses once deployed.
 
-- [ ] **Generated Sanity runtime files are tracked**
+- [x] **Generated Sanity runtime files are tracked**
   - **Severity**: Low
   - **Where**: `studio/.sanity/runtime/app.js`, `studio/.sanity/runtime/index.html`
   - **Current danger**: Generated dev/runtime artifacts create drift and can accidentally expose generated internals or noisy changes.
-  - **Fix**: Remove tracked `.sanity/runtime/*` files from Git and ignore `studio/.sanity/`.
-  - **Verification**: `git ls-files 'studio/.sanity/**'` returns nothing after cleanup.
+  - **Fix**: Ran `git rm -r --cached studio/.sanity` and added `studio/.sanity/` to `.gitignore`. Files stay on disk (they're harmless regenerable build output, no need to delete locally), just no longer tracked.
+  - **Verification**: `git ls-files 'studio/.sanity/**'` returns nothing; `git check-ignore -v studio/.sanity/runtime/app.js` confirms it now matches the new `.gitignore` rule.
 
 - [ ] **Astro generator version disclosure**
   - **Severity**: Low

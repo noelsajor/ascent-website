@@ -26,3 +26,4 @@ Thumbs.db
 # Sanity Studio
 studio/node_modules/
 studio/dist/
+studio/.sanity/
