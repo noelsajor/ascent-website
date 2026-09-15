@@ -1,6 +1,23 @@
 ---
 const { type = 'WebSite', title, description, url = Astro.url, image } = Astro.props;
 
+// Safely serialize data for embedding inside a <script type="application/ld+json">
+// element. JSON.stringify() alone does not escape "</script>", so CMS-controlled
+// text (e.g. a post title) could close the script tag and inject markup. Line/
+// paragraph separators are also escaped since they are valid in JSON strings but
+// were historically treated as line terminators by non-strict JS parsers.
+const LINE_SEPARATOR = String.fromCharCode(0x2028);
+const PARAGRAPH_SEPARATOR = String.fromCharCode(0x2029);
+
+function safeJsonLd(data) {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .split(LINE_SEPARATOR).join('\\u2028')
+    .split(PARAGRAPH_SEPARATOR).join('\\u2029');
+}
+
 const organizationData = {
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -49,7 +66,7 @@ if (type === 'BlogPosting') {
 }
 ---
 
-<script type="application/ld+json" set:html={JSON.stringify(organizationData)} />
-<script type="application/ld+json" set:html={JSON.stringify(webSiteData)} />
-<script type="application/ld+json" set:html={JSON.stringify(breadcrumbData)} />
-{blogPostingData && <script type="application/ld+json" set:html={JSON.stringify(blogPostingData)} />}
+<script type="application/ld+json" set:html={safeJsonLd(organizationData)} />
+<script type="application/ld+json" set:html={safeJsonLd(webSiteData)} />
+<script type="application/ld+json" set:html={safeJsonLd(breadcrumbData)} />
+{blogPostingData && <script type="application/ld+json" set:html={safeJsonLd(blogPostingData)} />}

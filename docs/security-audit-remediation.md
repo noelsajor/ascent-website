@@ -24,12 +24,12 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Replaced the hand-rolled `portableTextToHtml()` with the official `@portabletext/to-html` renderer (escapes span text by default). Added a custom `link` mark component using the library's `uriLooksSafe()` to reject non-`http(s)`/`mailto`/`tel`/relative schemes (e.g. `javascript:`), and an `escapeAttr()` helper so `href`/`src` values can't break out of their HTML attribute. Also added `Rule.uri({scheme:[...]})` validation to `studio/schemas/blockContent.js` so editors can no longer save a `javascript:` link in the first place (defense in depth).
   - **Verification**: `pnpm run build` passes. Ran the renderer directly against three payloads: (1) `<img src=x onerror=alert(document.domain)>` as span text → rendered as inert escaped text inside `<p>`, not executable markup; (2) a `link` mark with `href="javascript:alert(document.domain)"` → link stripped, only the text renders, no `<a>` emitted; (3) a `href` containing `"><script>` → the quote/angle-brackets were HTML-entity escaped, no attribute breakout. Could not exercise this through an actual live blog post in this environment (no Sanity content connected here), so verify once more against a real published test post before considering this fully closed in production.
 
-- [ ] **JSON-LD script breakout XSS**
+- [x] **JSON-LD script breakout XSS**
   - **Severity**: High
-  - **Where**: `src/components/JSONLD.astro:52-55`, called from layouts/pages that pass title and description
+  - **Where**: `src/components/JSONLD.astro`
   - **Current danger**: `JSON.stringify()` does not safely escape `</script>` in an HTML script context. A CMS-controlled title or description can close the JSON-LD script and inject executable JavaScript into the document head.
-  - **Fix**: Add a JSON-LD serializer that replaces `<`, `>`, `&`, U+2028, and U+2029 before `set:html`, or use a trusted helper that performs script-safe serialization.
-  - **Verification**: Test a title like `</script><script>alert(document.domain)</script>` and confirm the generated HTML contains escaped unicode sequences, not a real closing script tag.
+  - **Fix**: Added a `safeJsonLd()` serializer that escapes `<`, `>`, `&`, U+2028, and U+2029 before `set:html`, and routed all four `set:html={JSON.stringify(...)}` call sites through it.
+  - **Verification**: Ran the serializer directly against `</script><script>alert(document.domain)</script>` — output contains no raw `</script>`, only `</script>...`, and still round-trips through `JSON.parse` correctly. Confirmed in the actual `pnpm run build` output (`dist/index.html`) that a real page description containing `&` renders as `&` in the live JSON-LD tags.
 
 - [ ] **Vulnerable root dependency stack**
   - **Severity**: High
