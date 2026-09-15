@@ -47,19 +47,19 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Once a stable Node LTS (22 or 24) is available to actually run `pnpm run build`/`pnpm run dev` in `studio/`, apply the same pattern as root: pin safe same-major patched versions via `pnpm.overrides` for packages that verify clean, then plan and test the larger Sanity Studio v3→v4 migration required for `decompress`/`tar`/`vite`-chain criticals that don't have a same-major fix.
   - **Verification**: `pnpm audit` in `studio/` has no high/critical findings that apply to runtime, build, CI, or dev workflows; `pnpm run build` in `studio/` passes on a Node LTS version.
 
-- [ ] **Unprotected production branch**
+- [x] **Unprotected production branch**
   - **Severity**: High
   - **Where**: GitHub repository settings for `main`
   - **Current danger**: `main` is not protected and there are no rulesets. A compromised collaborator token, mistaken push, or force push can change production without review or required checks.
-  - **Fix**: Protect `main`, require pull requests, require review, require status checks, block force pushes, block branch deletion, and enforce rules for administrators unless there is a documented exception.
-  - **Verification**: GitHub reports branch protection/rulesets active for `main`; direct push to `main` is rejected.
+  - **Fix**: Applied branch protection to `main` via `gh api`: require a pull request with at least 1 approving review (stale reviews dismissed on new commits), require conversation resolution before merge, block force pushes, block branch deletion. Deliberately left **admins exempt** (`enforce_admins: false`) — documented owner decision, since this is a small/solo-maintained repo and `DEPLOYMENT_GUIDE.md` documents a direct-push bootstrap step for new brand clones. No required status checks yet, since there's no CI configured (tracked separately under "Dependabot and automated security checks disabled or absent").
+  - **Verification**: `gh api repos/noelsajor/ascent-website/branches/main/protection` confirms `required_approving_review_count: 1`, `allow_force_pushes: false`, `allow_deletions: false`, `required_conversation_resolution: true`, `enforce_admins: false`.
 
-- [ ] **Environment leak workflow and unignored Studio env file**
+- [x] **Environment leak workflow and unignored Studio env file**
   - **Severity**: High
-  - **Where**: `.gitignore:8-13`, `DEPLOYMENT_GUIDE.md:9`, observed `studio/.env.development`
+  - **Where**: `.gitignore`, `DEPLOYMENT_GUIDE.md`, observed `studio/.env.development`
   - **Current danger**: The repository is public. `studio/.env.development` is untracked but not ignored, and the deployment guide currently tells developers to commit `.env` variables. This creates a direct accidental secret disclosure path.
-  - **Fix**: Ignore all `.env` files in all directories except safe examples, correct the deployment guide so env values are configured only in local/Vercel/Sanity secret stores, and rotate any secret that was ever committed or exposed.
-  - **Verification**: `git status --ignored` shows local env files ignored; docs no longer instruct committing env files; secret scanning shows no exposed secrets.
+  - **Fix**: Replaced the narrow, per-file `.gitignore` env patterns (`.env`, `.env.local`, `.env.development.local`, etc. — which missed plain `.env.development`) with a catch-all `.env*` rule plus a `!.env.example` negation, so any env file at any depth is ignored except the committed template. Corrected `DEPLOYMENT_GUIDE.md` Step 1 to explicitly say never to commit `.env`/`.env.*` files and to configure them only through the Vercel dashboard (Step 2), instead of instructing developers to commit them.
+  - **Verification**: `git check-ignore -v studio/.env.development` now matches the new `.env*` rule (previously not ignored); `git status` no longer lists it as untracked; `.env.example` remains correctly un-ignored. Checked `studio/.env.development`'s contents (via the prior independent audit, since direct reads of `.env` files are blocked by tool policy): only `SANITY_STUDIO_*_PROJECT_ID` values, which are meant to be public identifiers, not secrets — no rotation needed. `git log --all --oneline -- '*.env*'` still shows only `.env.example` (template values) was ever committed.
 
 ## Medium Priority
 

@@ -9,12 +9,9 @@ node_modules/
 package-lock.json
 yarn.lock
 
-# local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# local env files (any depth, any env — only the committed template is kept)
+.env*
+!.env.example
 
 # logs
 npm-debug.log*

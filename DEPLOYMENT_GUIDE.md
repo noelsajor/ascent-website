@@ -6,7 +6,7 @@ Prior to deploying, ensure you have executed all QA tests defined in `docs/best-
 
 ## Step 1: Push to Repository
 
-Ensure all local changes, particularly your `.env` variables and localized Brand data, are committed.
+Ensure all local code changes and localized Brand data are committed. **Never commit your `.env` file or any `.env.*` file** (they're excluded by `.gitignore`) — environment variables are configured directly in the Vercel dashboard in Step 2 below, not through the repository.
 
 ```bash
 git add .
