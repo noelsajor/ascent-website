@@ -77,12 +77,13 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Added `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`, and a minimal `Content-Security-Policy-Report-Only` (`default-src 'self'; frame-ancestors 'none'`). Deliberately kept the CSP minimal rather than guessing at Sanity's full script/style/API surface — Studio's build is currently broken in this environment (the pre-existing `yargs`/Node v26 issue), so it can't be run locally to observe its real network calls.
   - **Verification**: JSON-validated the config structurally. **Not yet verified live** — once Studio can actually run (either on a Node LTS version or once deployed), open it in DevTools, log in, and exercise the editor to see which additional hosts the report-only CSP flags (Sanity's own API/CDN domains, `api.sanity.io`, etc.), then tighten `default-src 'self'` into explicit directives before enforcing.
 
-- [ ] **Dependabot and automated security checks disabled or absent**
+- [ ] **Dependabot and automated security checks disabled or absent** *(Dependabot enabled — CI workflow still open)*
   - **Severity**: Medium
   - **Where**: GitHub repository settings, missing `.github/` workflows
   - **Current danger**: Known vulnerabilities can remain invisible, and dependency/build failures can reach production because there are no required automated checks.
-  - **Fix**: Enable Dependabot alerts and security updates, add CI for root and Studio builds, add audit checks appropriate for production/build/dev risk, and require those checks on `main`.
-  - **Verification**: GitHub security settings show Dependabot enabled; PRs display required build/audit checks.
+  - **Fix applied so far**: Enabled Dependabot vulnerability alerts (`PUT /repos/.../vulnerability-alerts`) and Dependabot security updates (`PUT /repos/.../automated-security-fixes`) via `gh api`.
+  - **Remaining**: No CI workflow exists yet (`.github/workflows/` is empty) to build root + Studio and run `pnpm audit` on PRs, and `main`'s branch protection has no required status checks (deliberately, since none exist — see the branch protection item above). Adding CI is a separate, larger task: it needs decisions about which Node version to pin (this environment's local Node v26.7.0 breaks Studio's build; CI should almost certainly pin a Node LTS instead) and what should block a merge vs. just warn.
+  - **Verification**: `gh api repos/noelsajor/ascent-website --jq '.security_and_analysis'` shows `dependabot_security_updates.status: "enabled"`; `gh api repos/noelsajor/ascent-website/vulnerability-alerts` returns `204`. CI/required-checks verification still pending.
 
 - [ ] **Google Analytics loads before Cookiebot consent**
   - **Severity**: Medium
