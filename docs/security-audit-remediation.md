@@ -165,19 +165,19 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Ran `git rm -r --cached studio/.sanity` and added `studio/.sanity/` to `.gitignore`. Files stay on disk (they're harmless regenerable build output, no need to delete locally), just no longer tracked.
   - **Verification**: `git ls-files 'studio/.sanity/**'` returns nothing; `git check-ignore -v studio/.sanity/runtime/app.js` confirms it now matches the new `.gitignore` rule.
 
-- [ ] **Astro generator version disclosure**
+- [x] **Astro generator version disclosure**
   - **Severity**: Low
-  - **Where**: `src/components/SEO.astro:21`
+  - **Where**: `src/components/SEO.astro`
   - **Current danger**: Public HTML exposes the exact Astro version, helping attackers correlate known advisories with the deployed site.
-  - **Fix**: Remove `<meta name="generator" content={Astro.generator} />` from production output.
-  - **Verification**: Live HTML no longer includes the Astro generator meta tag.
+  - **Fix**: Removed `<meta name="generator" content={Astro.generator} />`.
+  - **Verification**: `pnpm run build` passes; confirmed `dist/index.html` no longer contains a `name="generator"` meta tag.
 
-- [ ] **No public security disclosure contact**
+- [ ] **No public security disclosure contact** *(fixed, needs live 200-check after deploy)*
   - **Severity**: Low
   - **Where**: `/.well-known/security.txt` returns 404
   - **Current danger**: Security researchers have no standardized contact or disclosure policy.
-  - **Fix**: Add `public/.well-known/security.txt` with contact, policy, preferred language, and expiry.
-  - **Verification**: `https://ascentmgnt.com/.well-known/security.txt` returns 200 after deployment.
+  - **Fix**: Added `public/.well-known/security.txt` (RFC 9116) with `Contact: mailto:noelsajor@gmail.com` (confirmed with the site owner — no other security/support contact existed anywhere in the codebase), `Expires` one year out, `Preferred-Languages: en`, and a `Canonical` URL.
+  - **Verification**: `pnpm run build` passes; confirmed the file is copied verbatim into `dist/.well-known/security.txt`. **Live 200 check still pending** — needs confirming against the deployed site, no live environment available here.
 
 - [ ] **DNSSEC, MTA-STS, and TLS reporting are not configured**
   - **Severity**: Low

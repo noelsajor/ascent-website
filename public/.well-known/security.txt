@@ -1,0 +1,4 @@
+Contact: mailto:noelsajor@gmail.com
+Expires: 2027-09-15T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://ascentmgnt.com/.well-known/security.txt
