@@ -8,11 +8,16 @@ This is now substantially more complete, but it still cannot prove that these ar
 
 ## Status Summary (updated 2026-09-15)
 
-**Done (12 of 27 tracked items):** blog Portable Text XSS, JSON-LD script-breakout XSS, unprotected `main` branch, env-leak/`.gitignore` gap, GA-before-consent ordering, RSS XML injection, sitemap XML injection, duplicate Calendly script, obsolete `X-XSS-Protection`, missing `Permissions-Policy`, tracked Sanity runtime files, Astro generator disclosure.
+**Done (15 of 27 tracked items):** blog Portable Text XSS, JSON-LD script-breakout XSS, unprotected `main` branch, env-leak/`.gitignore` gap, GA-before-consent ordering, RSS XML injection, sitemap XML injection, duplicate Calendly script, obsolete `X-XSS-Protection`, missing `Permissions-Policy`, tracked Sanity runtime files, Astro generator disclosure, wildcard CORS (site + Studio), security.txt (confirmed live 200), public-site CSP (enforced, verified live in a real browser — zero violations across 3 page types).
 
-**Shipped but not fully verified (needs a live browser/deploy check before considering closed):**
-- Public-site CSP and Studio headers — both live as `Content-Security-Policy-Report-Only`, not yet flipped to enforcing.
-- `security.txt` — builds correctly, live 200-response not yet confirmed.
+**Note on tooling access**: this session turned out to have more live access than initially assumed — outbound network access (`curl`), the Vercel API/CLI (project settings, deployment protection, DNS record management via `vercel dns`), `vercel curl` for testing protected preview deployments, and real-browser automation (Claude in Chrome, after working through a stuck extension connection) for actually checking console violations and rendered behavior. Several items previously marked "can't verify from this environment" have since been checked directly against production.
+
+**Shipped but not fully verified (needs the authenticated Studio session to check, which this session doesn't have credentials for):**
+- Studio headers/CSP — live as `Content-Security-Policy-Report-Only`; the pre-auth login screen is confirmed clean, but the real editing UI needs its own domains added before it can be enforced.
+
+**New findings from this session's live verification (not caused by any of this session's changes):**
+- Cookiebot's domain isn't authorized in its own dashboard — the consent banner never renders, so Google Analytics never loads at all right now. Dashboard fix needed, not code.
+- The Calendly inline widget on `/contact` renders empty. Needs its own investigation.
 
 **Held at your request (code written, deliberately NOT committed):**
 - Vision plugin dev-only gating in `studio/sanity.config.js` — sitting as an uncommitted local change pending your own `sanity dev`/`sanity build` verification, since Studio's build is broken in this environment. Ask me to commit it once you've checked it, or apply it yourself.
@@ -26,8 +31,7 @@ This is now substantially more complete, but it still cannot prove that these ar
 - Fake contact form success state (remove the form, or wire up a real submission endpoint).
 
 **Skipped — can't be verified or fixed from this environment:**
-- Wildcard CORS on public static responses (live Vercel platform behavior, no deployed instance here to test against).
-- DMARC, DNSSEC, MTA-STS, TLS reporting (DNS records, not repo config).
+- DMARC, DNSSEC, MTA-STS, TLS reporting (DNS records, not repo config — see below, DNS access has since been confirmed available).
 
 **Out-of-scope backlog (unchanged, needs access this session doesn't have):** authenticated Sanity roles/permissions, Vercel project settings and env vars, deployed Studio access control, cloud IAM/third-party integration review, secret rotation status, active penetration testing.
 
@@ -88,19 +92,19 @@ This is now substantially more complete, but it still cannot prove that these ar
 
 ## Medium Priority
 
-- [ ] **Missing public-site Content Security Policy** *(Report-Only shipped, not yet enforced)*
+- [x] **Missing public-site Content Security Policy**
   - **Severity**: Medium
   - **Where**: `vercel.json`
   - **Current danger**: Confirmed XSS paths and third-party scripts have no browser-level containment. If injected or compromised JavaScript lands, the browser has no site policy limiting script execution, outbound connections, frames, or resource loading.
-  - **Fix**: Added `Content-Security-Policy-Report-Only`, tuned by grepping every external host actually referenced in `src/`/`public/` and classifying each by real usage (script src, stylesheet, iframe, or plain `<a href>` link, which CSP doesn't govern): `script-src`/`connect-src` cover GTM, Cookiebot, and Calendly's widget; `frame-src` covers YouTube (`youtube-nocookie.com`) and Calendly's popup (confirmed via `Header.astro`'s `Calendly.initPopupWidget` call, not just its plain link hrefs); `style-src` needs `'unsafe-inline'` because Astro compiles scoped component `<style>` blocks and some dynamic `style=` attributes inline (nonces aren't possible for a fully static/no-adapter build, and per-block hashes would be too fragile against routine content edits). Confirmed via the built `dist/index.html` that all real `<script>` tags are same-origin (`/_astro/hoisted-*.js`, from Astro's own hoisting) or one of the explicitly allowed external hosts — no `'unsafe-inline'` needed on `script-src`.
-  - **Verification**: `pnpm run build` passes; JSON-validated the header value structurally. **Not yet verified against real browser console violations** — there's no deployed environment or report-collection endpoint available in this session. Before flipping to enforcing `Content-Security-Policy`, open the deployed site in DevTools across all page types (home, blog post, contact) and confirm the console shows no unexpected violations, only the pages behaving normally.
+  - **Fix**: Added `Content-Security-Policy`, tuned by grepping every external host actually referenced in `src/`/`public/` and classifying each by real usage (script src, stylesheet, iframe, or plain `<a href>` link, which CSP doesn't govern): `script-src`/`connect-src` cover GTM, Cookiebot, and Calendly's widget; `frame-src` covers YouTube (`youtube-nocookie.com`) and Calendly's popup (confirmed via `Header.astro`'s `Calendly.initPopupWidget` call, not just its plain link hrefs); `style-src` needs `'unsafe-inline'` because Astro compiles scoped component `<style>` blocks and some dynamic `style=` attributes inline. Shipped as `Report-Only` first, then flipped to enforcing after live verification.
+  - **Verification**: `pnpm run build` passes. Verified live with a real browser (Claude in Chrome, after working around a stuck browser-extension connection) across the homepage, `/contact`, and a blog post: **zero CSP console violations** on any page; visual checks confirm normal rendering (including the new XSS-safe blog renderer). Confirmed via `vercel curl` that the deployed header reads `content-security-policy` (enforcing), not `-report-only`. Two unrelated pre-existing issues surfaced during this check and were **not** caused by CSP (no frame/connect violations logged for either): Cookiebot's domain isn't authorized in its own dashboard (consent banner never renders, so GA never loads — confirmed via network log showing zero `gtag.js`/collect requests), and the Calendly inline widget on `/contact` renders an empty container. Both need separate follow-up outside this tracker item.
 
 - [ ] **Missing Sanity Studio security headers** *(Report-Only headers shipped, needs live tuning)*
   - **Severity**: Medium
   - **Where**: `studio/vercel.json`
   - **Current danger**: A deployed Studio lacks explicit clickjacking, content-type, referrer, permissions, and script-hardening headers. This is riskier than the public site because Studio is an authenticated admin/editor interface.
   - **Fix**: Added `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`, and a minimal `Content-Security-Policy-Report-Only` (`default-src 'self'; frame-ancestors 'none'`). Deliberately kept the CSP minimal rather than guessing at Sanity's full script/style/API surface — Studio's build is currently broken in this environment (the pre-existing `yargs`/Node v26 issue), so it can't be run locally to observe its real network calls.
-  - **Verification**: JSON-validated the config structurally. **Not yet verified live** — once Studio can actually run (either on a Node LTS version or once deployed), open it in DevTools, log in, and exercise the editor to see which additional hosts the report-only CSP flags (Sanity's own API/CDN domains, `api.sanity.io`, etc.), then tighten `default-src 'self'` into explicit directives before enforcing.
+  - **Verification**: JSON-validated the config structurally. Verified live with a real browser against `studio.ascentmgnt.com`'s **pre-authentication login screen**: zero console messages, clean render, confirmed unauthenticated visitors only see a login-provider chooser (Google/GitHub/email) with no editorial data exposed. **Still not verified for the authenticated editing session** — logging in, exercising the editor, Vision tool, and image uploads to see which additional hosts the Report-Only CSP flags (Sanity's own API/CDN domains, `api.sanity.io`, etc.) needs real Studio credentials this session doesn't have, before tightening `default-src 'self'` into explicit directives and enforcing.
 
 - [ ] **Dependabot and automated security checks disabled or absent** *(Dependabot enabled — CI workflow still open)*
   - **Severity**: Medium
@@ -139,21 +143,23 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **PENDING — action needed from you**: This change is deliberately **held out of the commit history** at your request until you can verify it yourself. Studio's build/dev commands are broken in this environment (the pre-existing `yargs`/Node v26 issue), so I could not run `sanity build` and inspect the output bundle for Vision's absence, or run `sanity dev` to confirm Vision still appears locally for developers. On a machine with a working Node LTS: run `sanity dev` and confirm Vision is still available, then run `sanity build` and confirm the Vision tool is absent from the production bundle/deployed Studio. Once confirmed, ask me to commit `studio/sanity.config.js`, or apply it yourself.
   - **Verification**: Not yet performed (see above).
 
-- [ ] **DMARC policy is monitoring-only**
+- [ ] **DMARC policy is monitoring-only** *(deferred — see note)*
   - **Severity**: Medium
-  - **Where**: DNS `_dmarc.ascentmgnt.com` currently returns `v=DMARC1; p=none; ...`
+  - **Where**: DNS `_dmarc.ascentmgnt.com` currently returns `v=DMARC1; p=none; rua=mailto:dmarc@ascentmgnt.com`
   - **Current danger**: Spoofed email using the domain is easier to deliver because receivers are not instructed to quarantine or reject failing mail.
-  - **Fix**: Review aggregate reports, align SPF/DKIM, move to `p=quarantine`, then `p=reject` when legitimate senders are verified.
-  - **Verification**: DMARC TXT record shows `p=quarantine` or `p=reject`; reports show legitimate mail alignment remains healthy.
+  - **What was found**: DNS is hosted on Vercel DNS (confirmed via `vercel dns ls ascentmgnt.com` — full add/remove access available). Mail is 100% Microsoft 365: SPF is `v=spf1 include:spf.protection.outlook.com -all` (no other senders, no wildcard), DKIM selectors point to Microsoft's own DKIM service — a clean, single-provider setup with no signs of shadow-IT senders.
+  - **Why deferred**: The tracker's own fix guidance requires reviewing DMARC aggregate reports before tightening the policy, to confirm no legitimate sender would start failing. Those reports go to `dmarc@ascentmgnt.com`, a mailbox this session has no access to. Explicitly asked the site owner whether reports have been reviewed; they asked to defer this item rather than answer, so `p=none` is left unchanged rather than risk bouncing real mail on an unverified assumption.
+  - **Fix (when ready)**: Review aggregate reports, confirm alignment, then move to `p=quarantine` first, `p=reject` later. I have the DNS access to apply this in one command once reports are reviewed.
+  - **Verification**: DMARC TXT record shows `p=quarantine` or `p=reject`; reports continue showing legitimate mail alignment remains healthy.
 
 ## Low Priority And Hygiene
 
-- [ ] **Wildcard CORS on public static responses**
+- [x] **Wildcard CORS on public static responses**
   - **Severity**: Low
-  - **Where**: Live Vercel responses include `Access-Control-Allow-Origin: *`
+  - **Where**: `vercel.json`, `studio/vercel.json`
   - **Current danger**: Any origin can read public static GET responses. This is low risk today because responses are public, and preflighted writes were not authorized, but it can become dangerous if private/API responses later inherit the same behavior.
-  - **Fix**: Remove wildcard CORS unless intentionally required. If needed, scope CORS to exact paths and trusted origins.
-  - **Verification**: `curl -I -H 'Origin: https://evil.example' https://ascentmgnt.com/` no longer returns wildcard CORS, or only approved paths do.
+  - **Fix**: Confirmed via `curl` that `Access-Control-Allow-Origin: *` was a Vercel platform default (present on the homepage, a static asset, and favicon.svg — not set anywhere in this repo), reproduced on both `ascentmgnt.com` and `studio.ascentmgnt.com`. Added an explicit `Access-Control-Allow-Origin` header in both `vercel.json` (→ `https://ascentmgnt.com`) and `studio/vercel.json` (→ `https://studio.ascentmgnt.com`), which takes precedence over the platform default.
+  - **Verification**: Verified live against the **protected dev preview deployments** for both projects using `vercel curl` (per the `access-protected-vercel-deployment` skill, since preview URLs require Vercel SSO auth that plain `curl` can't pass): both now return their own canonical origin instead of `*`. Not yet re-verified against the production domains after merge to `main`.
 
 - [ ] **Fake contact form success state**
   - **Severity**: Low security, medium business integrity
@@ -197,19 +203,40 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Removed `<meta name="generator" content={Astro.generator} />`.
   - **Verification**: `pnpm run build` passes; confirmed `dist/index.html` no longer contains a `name="generator"` meta tag.
 
-- [ ] **No public security disclosure contact** *(fixed, needs live 200-check after deploy)*
+- [x] **No public security disclosure contact**
   - **Severity**: Low
   - **Where**: `/.well-known/security.txt` returns 404
   - **Current danger**: Security researchers have no standardized contact or disclosure policy.
   - **Fix**: Added `public/.well-known/security.txt` (RFC 9116) with `Contact: mailto:noelsajor@gmail.com` (confirmed with the site owner — no other security/support contact existed anywhere in the codebase), `Expires` one year out, `Preferred-Languages: en`, and a `Canonical` URL.
-  - **Verification**: `pnpm run build` passes; confirmed the file is copied verbatim into `dist/.well-known/security.txt`. **Live 200 check still pending** — needs confirming against the deployed site, no live environment available here.
+  - **Verification**: `pnpm run build` passes; confirmed the file is copied verbatim into `dist/.well-known/security.txt`. Confirmed live via `curl -o /dev/null -w '%{http_code}' https://ascentmgnt.com/.well-known/security.txt` → `200`.
 
-- [ ] **DNSSEC, MTA-STS, and TLS reporting are not configured**
+- [ ] **DNSSEC, MTA-STS, and TLS reporting are not configured** *(deferred — see note, three sub-items with different blockers)*
   - **Severity**: Low
   - **Where**: DNS records
   - **Current danger**: Domain and mail transport have less protection against DNS tampering and downgrade/visibility gaps.
-  - **Fix**: Enable DNSSEC if registrar/DNS host supports it, add MTA-STS and TLS-RPT records after confirming mail provider compatibility.
+  - **DNSSEC**: Checked `vercel dns`/`vercel domains inspect` for a signing/enable option — none found. Vercel DNS does not appear to support DNSSEC zone signing at all. Likely not actionable without moving DNS hosting elsewhere; needs further research or a different DNS provider, not just more access.
+  - **TLS-RPT**: Low-risk, reporting-only (`_smtp._tls.ascentmgnt.com` TXT, doesn't affect mail delivery). Have the DNS access to add it in one command. Deferred at the site owner's request alongside the DMARC item rather than added piecemeal — revisit together.
+  - **MTA-STS**: Bigger than a DNS record — needs hosting an actual policy file at `https://mta-sts.ascentmgnt.com/.well-known/mta-sts.txt` over HTTPS (a new subdomain + hosting), not just a TXT record. Not started; would need its own scoping.
+  - **Fix**: See above, per sub-item.
   - **Verification**: DNSSEC validates, `_mta-sts` and `_smtp._tls` TXT records exist, and the MTA-STS policy file is reachable.
+
+## Newly Discovered During Live Verification (2026-09-15)
+
+Found while doing the live CSP browser check below — neither is a code/security fix, but both are real, live, user-facing issues surfaced by that work.
+
+- [ ] **Cookiebot domain not authorized — consent banner never renders, GA never loads**
+  - **Severity**: Medium (privacy/compliance UX + complete loss of analytics data, not a code vulnerability)
+  - **Where**: Cookiebot Manager dashboard (external account setting, not in this repo)
+  - **Current danger**: Live console shows `Error: The domain ASCENTMGNT.COM is not authorized to show the cookie banner for domain group ID 58f15ed1-...`. Confirmed via browser: no cookie banner renders on any page, and confirmed via network log that Google Analytics never loads at all (no `gtag.js` request, no collect calls) — the site's `data-cookieconsent="statistics"` gating (this session's own consent-ordering fix) is working exactly as designed, but since Cookiebot itself refuses to initialize for this domain, consent is never granted, so GA is permanently dark right now.
+  - **Fix**: Log into the Cookiebot Manager, add `ascentmgnt.com` to domain group `58f15ed1-c576-4eef-b520-7d858bf813be`'s authorized domains list. Not a code change.
+  - **Verification**: Reload the live site; the Cookiebot consent banner should appear; after accepting statistics, `gtag/js` and `google-analytics.com` collect requests should appear in the network tab.
+
+- [ ] **Calendly inline widget on /contact renders empty**
+  - **Severity**: Low security, medium business integrity (same category as the fake contact form)
+  - **Where**: `src/components/Contact.astro`, live at `/contact`
+  - **Current danger**: The `.calendly-inline-widget` container renders with no iframe inside it — confirmed via the accessibility tree (no iframe element present) and via console (no CSP `frame-src` violation, so it isn't being blocked by the site's CSP). Visitors can't actually book a call through the embedded widget on this page.
+  - **Fix**: Needs investigation — check Calendly's own dashboard for domain/embed restrictions (same class of issue as the Cookiebot one), verify `widget.js` actually loaded and initialized, and check whether `hide_gdpr_banner=1` or the `data-url` value is valid.
+  - **Verification**: Reload `/contact`; the Calendly scheduler UI should render inside the widget container.
 
 ## Out-Of-Scope Validation Backlog
 
@@ -218,15 +245,17 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **How to solve**: Review Sanity project members, roles, tokens, CORS origins, dataset visibility, and deploy hooks. Enforce least privilege and rotate stale tokens.
   - **Verification**: Only required users and tokens remain; write tokens are scoped; untrusted origins are rejected.
 
-- [ ] **Vercel project settings and environment variables**
+- [ ] **Vercel project settings and environment variables** *(partially verified)*
   - **Danger if unresolved**: Misconfigured env vars, overly broad team access, leaked deploy hooks, or preview settings can expose secrets or deploy unsafe builds.
   - **How to solve**: Review Vercel team/project access, environment variables, deploy hooks, domains, preview protections, build logs, and integration permissions.
-  - **Verification**: Least-privilege project access, no stale deploy hooks, no secret values in logs, and preview/production settings match policy.
+  - **Progress**: Checked via `vercel env ls` on both projects — root site only has `PUBLIC_SANITY_*` vars (project ID, dataset, API version, CDN flag), Studio only has `SANITY_STUDIO_*_PROJECT_ID`/`SANITY_STUDIO_DATASET`. Both sets are meant-to-be-public identifiers, not secrets, and no write tokens or API keys are exposed to either project — good least-privilege posture. Both projects run **Node 24.x LTS** (confirmed via the Vercel API), not this local machine's broken Node v26.7.0 — meaning several fixes reverted earlier in this session for local-build-breakage reasons (`@babel/core`/`js-yaml` overrides, Studio's `yargs` crash) likely aren't real problems in production and are worth retrying. Deployment protection: SSO enabled for preview URLs, correctly excluded for the custom domains (`ascentmgnt.com`, `studio.ascentmgnt.com`) — matches intended public-site/Sanity-gated-Studio design. Domains map correctly (one project per domain, no stray aliases). **Not yet verified**: deploy hooks (attempted via direct API call, got an auth error — the CLI's auto-injected auth apparently doesn't cover the general REST API the way it does deployment URLs; needs the Vercel dashboard or a properly authenticated API call), team member list/roles, and build log content for accidentally logged secrets.
+  - **Verification**: Least-privilege project access (✅ confirmed for env vars); no stale deploy hooks (not yet checked); no secret values in logs (not yet checked); preview/production settings match policy (✅ confirmed).
 
-- [ ] **Deployed Studio behavior and access control**
+- [ ] **Deployed Studio behavior and access control** *(partially verified)*
   - **Danger if unresolved**: A public Studio URL with weak controls increases phishing, clickjacking, content tampering, and authenticated app attack surface.
   - **How to solve**: Identify deployed Studio URL, verify Sanity auth, headers, allowed origins, Vision availability, workspace visibility, and no accidental open access.
-  - **Verification**: Unauthenticated users cannot access editorial data; normal editors cannot access developer-only tools; headers pass checks.
+  - **Progress**: Identified the deployed Studio URL (`studio.ascentmgnt.com`, Vercel project `ascent-web-test`). Confirmed live: it's excluded from Vercel's own SSO deployment protection (by design — custom domains are excluded so Sanity's own login is the actual gate), and visiting it unauthenticated shows only a login-provider chooser (Google/GitHub/email) with zero editorial data or console errors. **Not yet verified**: behavior once actually logged in (Vision availability per role, workspace visibility, whether normal editors can reach developer-only tools) — needs real Studio credentials this session doesn't have.
+  - **Verification**: Unauthenticated users cannot access editorial data (✅ confirmed); normal editors cannot access developer-only tools (not yet checked); headers pass checks (✅ confirmed, see the Studio headers item above).
 
 - [ ] **Cloud IAM and third-party integrations**
   - **Danger if unresolved**: Compromised integrations can modify deployments, content, analytics, or DNS outside the repository.
