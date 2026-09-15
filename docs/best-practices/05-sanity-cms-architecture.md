@@ -33,7 +33,7 @@ Sanity handles image CDNs incredibly efficiently.
 
 ## 4. Development Workflow (Local Studio)
 
-- Ensure you run `cd studio && npm run dev` to start the local Sanity workspace. It operates independently of the Astro server.
+- Ensure you run `cd studio && pnpm run dev` to start the local Sanity workspace. It operates independently of the Astro server.
 - The Studio points to the dataset defined in your `.env` (usually `production` or `development`). If you are making breaking schema changes, branch out to a `development` dataset using the Sanity CLI before launching them directly into the live production editor.
 
 ## 5. Security & Role Management

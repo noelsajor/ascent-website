@@ -112,4 +112,7 @@ const CALENDLY_URL = 'https://calendly.com/noelsajor/new-meeting?hide_gdpr_banne
   }
 </script>
 
-<script is:inline src="https://assets.calendly.com/assets/external/widget.js"></script>
+{/* Calendly's widget.js is already loaded globally in Header.astro (rendered on
+   every page via BaseLayout) — it scans the whole document for both
+   .calendly-trigger and .calendly-inline-widget elements, so this page's
+   inline widget above is initialized without needing its own copy of the script. */}

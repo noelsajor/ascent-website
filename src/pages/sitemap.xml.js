@@ -2,6 +2,18 @@ import { getAllPosts } from '../lib/sanity';
 
 const site = 'https://ascentmgnt.com';
 
+// Escapes a value for safe interpolation into XML text content. Defense in
+// depth alongside the slug schema validation — CMS-controlled slugs could
+// otherwise inject XML-significant characters into the sitemap.
+function escapeXml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
 export async function GET() {
     const posts = await getAllPosts().catch(() => []);
 
@@ -28,7 +40,7 @@ export async function GET() {
       `).join('')}
       ${posts.map(post => `
         <url>
-          <loc>${site}/blog/${post.slug.current}</loc>
+          <loc>${site}/blog/${escapeXml(encodeURIComponent(post.slug.current))}</loc>
           <lastmod>${new Date(post.publishedAt || Date.now()).toISOString()}</lastmod>
           <changefreq>weekly</changefreq>
           <priority>0.7</priority>

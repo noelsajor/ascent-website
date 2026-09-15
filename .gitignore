@@ -5,12 +5,13 @@ dist/
 # dependencies
 node_modules/
 
-# local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# this project uses pnpm — ignore other package managers' lockfiles
+package-lock.json
+yarn.lock
+
+# local env files (any depth, any env — only the committed template is kept)
+.env*
+!.env.example
 
 # logs
 npm-debug.log*
@@ -25,3 +26,4 @@ Thumbs.db
 # Sanity Studio
 studio/node_modules/
 studio/dist/
+studio/.sanity/

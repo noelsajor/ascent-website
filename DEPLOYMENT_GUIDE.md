@@ -6,7 +6,7 @@ Prior to deploying, ensure you have executed all QA tests defined in `docs/best-
 
 ## Step 1: Push to Repository
 
-Ensure all local changes, particularly your `.env` variables and localized Brand data, are committed.
+Ensure all local code changes and localized Brand data are committed. **Never commit your `.env` file or any `.env.*` file** (they're excluded by `.gitignore`) — environment variables are configured directly in the Vercel dashboard in Step 2 below, not through the repository.
 
 ```bash
 git add .
@@ -58,7 +58,8 @@ You need to host the Sanity Editor GUI so clients/content managers can log in.
 2. **Root Directory**: Click "Edit" and set the directory to **`studio`**.
 3. **Build Settings**:
     *   Framework Preset: **Vite**.
-    *   Build Command: `npm run build`
+    *   Install Command: `pnpm install`
+    *   Build Command: `pnpm run build`
     *   Output Directory: `dist`
 4. Add Environment Variables specifically for the studio:
     *   `SANITY_STUDIO_PROJECT_ID`: `your_project_id`
@@ -69,7 +70,7 @@ You need to host the Sanity Editor GUI so clients/content managers can log in.
 Open your terminal in the `studio` folder:
 ```bash
 cd studio
-npx sanity deploy
+pnpm exec sanity deploy
 ```
 Follow the prompts to choose a URL (e.g., `yourbrand.sanity.studio`).
 

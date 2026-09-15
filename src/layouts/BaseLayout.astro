@@ -24,17 +24,31 @@ const { title, description, activePage, type } = Astro.props;
       name="google-site-verification"
       content="7r_mh6wY9bW0Bd_xCtQJXtWR_9TlEmcdv6qvR_t9_sc"
     />
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NRF9V8QJYR"></script>
-    <script>
+    <!-- Google Consent Mode defaults: deny analytics/ads storage until Cookiebot grants consent.
+         This exact script content is allow-listed by a CSP hash in vercel.json — if you edit it,
+         regenerate the sha256 hash and update script-src there too, or the CSP will block it. -->
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'analytics_storage': 'denied'
+      });
+    </script>
+    {import.meta.env.PROD && (
+      <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="58f15ed1-c576-4eef-b520-7d858bf813be" data-blockingmode="auto" type="text/javascript"></script>
+    )}
+    <!-- Google tag (gtag.js) — data-cookieconsent="statistics" + type="text/plain" let Cookiebot's
+         auto-blocking mode hold this inert until the visitor grants statistics consent -->
+    <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-NRF9V8QJYR" data-cookieconsent="statistics"></script>
+    <script is:inline type="text/plain" data-cookieconsent="statistics">
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-NRF9V8QJYR');
     </script>
-    {import.meta.env.PROD && (
-      <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="58f15ed1-c576-4eef-b520-7d858bf813be" data-blockingmode="auto" type="text/javascript"></script>
-    )}
   </head>
   <body class="font-body leading-[1.75] text-text bg-bg-0 text-[17px] antialiased">
     <Header activePage={activePage} />

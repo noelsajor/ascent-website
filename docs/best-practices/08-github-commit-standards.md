@@ -29,7 +29,7 @@ A commit message should consist of a type, an optional scope, and a subject.
 - `style`: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, CSS styling tweaks).
 - `refactor`: A code change that neither fixes a bug nor adds a feature (e.g., renaming a variable, moving a component).
 - `perf`: A code change that improves site performance.
-- `build`: Changes that affect the build system or external dependencies (Vercel, NPM).
+- `build`: Changes that affect the build system or external dependencies (Vercel, pnpm).
 
 **Examples of Good Commits:**
 ✅ `feat(header): add dynamic background transparency on scroll`
@@ -57,3 +57,16 @@ When your feature branch is ready:
 
 - **CRITICAL**: Never execute a `git add .` without first ensuring that your `.env` or `.env.local` files are successfully listed in your `.gitignore` file.
 - If you add a new required environment variable to the project, add a dummy version of it to `.env.example` and commit the example file so other developers know what keys they need to scaffold their local enviroments.
+
+## 6. Branch Protection (`main`)
+
+As of the September 2026 security audit remediation, `main` has GitHub branch protection enabled (applied via `gh api repos/<owner>/<repo>/branches/main/protection`, verifiable with `gh api repos/<owner>/<repo>/branches/main/protection`):
+
+- **Pull requests required** — direct `git push` to `main` is rejected for non-admin collaborators.
+- **1 approving review required**, with stale reviews auto-dismissed when new commits are pushed to the PR.
+- **Conversation resolution required** before a PR can merge.
+- **Force pushes blocked** and **branch deletion blocked** — for everyone, no exceptions.
+- **Admins are exempt** (`enforce_admins: false`) — the repo owner can still push directly to `main` for the rare documented hotfix case (section 1) or the `git push origin main` bootstrap step in `DEPLOYMENT_GUIDE.md`. This is a deliberate choice for this solo/small-team repo, not an oversight — treat it as a break-glass exception, not the default workflow.
+- **No required status checks yet** — there's no CI configured in this repo. Once CI exists (tracked separately in the security tracker), required status checks should be added here too.
+
+If you clone this repo for a new brand, re-apply the same protection on the new repo's `main` branch — it does not carry over automatically via `git push` or a GitHub template.

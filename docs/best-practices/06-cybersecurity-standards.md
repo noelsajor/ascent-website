@@ -47,5 +47,5 @@ For maximum resilience against malicious injected scripts, establish a sturdy se
 ## 5. Dependency Management
 
 Static sites are compiled code, meaning malicious NPM libraries are compiled directly into your distribution if not caught.
-- Run `npm audit` before major deployments.
+- Run `pnpm audit` before major deployments.
 - Lock dependencies utilizing `package-lock.json` and rigidly test any updates before arbitrarily upgrading Astro or Sanity to breaking versions.
