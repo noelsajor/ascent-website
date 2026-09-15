@@ -140,12 +140,14 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **PENDING — action needed from you**: This change is deliberately **held out of the commit history** at your request until you can verify it yourself. Studio's build/dev commands are broken in this environment (the pre-existing `yargs`/Node v26 issue), so I could not run `sanity build` and inspect the output bundle for Vision's absence, or run `sanity dev` to confirm Vision still appears locally for developers. On a machine with a working Node LTS: run `sanity dev` and confirm Vision is still available, then run `sanity build` and confirm the Vision tool is absent from the production bundle/deployed Studio. Once confirmed, ask me to commit `studio/sanity.config.js`, or apply it yourself.
   - **Verification**: Not yet performed (see above).
 
-- [ ] **DMARC policy is monitoring-only**
+- [ ] **DMARC policy is monitoring-only** *(deferred — see note)*
   - **Severity**: Medium
-  - **Where**: DNS `_dmarc.ascentmgnt.com` currently returns `v=DMARC1; p=none; ...`
+  - **Where**: DNS `_dmarc.ascentmgnt.com` currently returns `v=DMARC1; p=none; rua=mailto:dmarc@ascentmgnt.com`
   - **Current danger**: Spoofed email using the domain is easier to deliver because receivers are not instructed to quarantine or reject failing mail.
-  - **Fix**: Review aggregate reports, align SPF/DKIM, move to `p=quarantine`, then `p=reject` when legitimate senders are verified.
-  - **Verification**: DMARC TXT record shows `p=quarantine` or `p=reject`; reports show legitimate mail alignment remains healthy.
+  - **What was found**: DNS is hosted on Vercel DNS (confirmed via `vercel dns ls ascentmgnt.com` — full add/remove access available). Mail is 100% Microsoft 365: SPF is `v=spf1 include:spf.protection.outlook.com -all` (no other senders, no wildcard), DKIM selectors point to Microsoft's own DKIM service — a clean, single-provider setup with no signs of shadow-IT senders.
+  - **Why deferred**: The tracker's own fix guidance requires reviewing DMARC aggregate reports before tightening the policy, to confirm no legitimate sender would start failing. Those reports go to `dmarc@ascentmgnt.com`, a mailbox this session has no access to. Explicitly asked the site owner whether reports have been reviewed; they asked to defer this item rather than answer, so `p=none` is left unchanged rather than risk bouncing real mail on an unverified assumption.
+  - **Fix (when ready)**: Review aggregate reports, confirm alignment, then move to `p=quarantine` first, `p=reject` later. I have the DNS access to apply this in one command once reports are reviewed.
+  - **Verification**: DMARC TXT record shows `p=quarantine` or `p=reject`; reports continue showing legitimate mail alignment remains healthy.
 
 ## Low Priority And Hygiene
 
@@ -205,11 +207,14 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Added `public/.well-known/security.txt` (RFC 9116) with `Contact: mailto:noelsajor@gmail.com` (confirmed with the site owner — no other security/support contact existed anywhere in the codebase), `Expires` one year out, `Preferred-Languages: en`, and a `Canonical` URL.
   - **Verification**: `pnpm run build` passes; confirmed the file is copied verbatim into `dist/.well-known/security.txt`. Confirmed live via `curl -o /dev/null -w '%{http_code}' https://ascentmgnt.com/.well-known/security.txt` → `200`.
 
-- [ ] **DNSSEC, MTA-STS, and TLS reporting are not configured**
+- [ ] **DNSSEC, MTA-STS, and TLS reporting are not configured** *(deferred — see note, three sub-items with different blockers)*
   - **Severity**: Low
   - **Where**: DNS records
   - **Current danger**: Domain and mail transport have less protection against DNS tampering and downgrade/visibility gaps.
-  - **Fix**: Enable DNSSEC if registrar/DNS host supports it, add MTA-STS and TLS-RPT records after confirming mail provider compatibility.
+  - **DNSSEC**: Checked `vercel dns`/`vercel domains inspect` for a signing/enable option — none found. Vercel DNS does not appear to support DNSSEC zone signing at all. Likely not actionable without moving DNS hosting elsewhere; needs further research or a different DNS provider, not just more access.
+  - **TLS-RPT**: Low-risk, reporting-only (`_smtp._tls.ascentmgnt.com` TXT, doesn't affect mail delivery). Have the DNS access to add it in one command. Deferred at the site owner's request alongside the DMARC item rather than added piecemeal — revisit together.
+  - **MTA-STS**: Bigger than a DNS record — needs hosting an actual policy file at `https://mta-sts.ascentmgnt.com/.well-known/mta-sts.txt` over HTTPS (a new subdomain + hosting), not just a TXT record. Not started; would need its own scoping.
+  - **Fix**: See above, per sub-item.
   - **Verification**: DNSSEC validates, `_mta-sts` and `_smtp._tls` TXT records exist, and the MTA-STS policy file is reachable.
 
 ## Out-Of-Scope Validation Backlog
