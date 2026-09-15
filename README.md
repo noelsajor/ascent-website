@@ -19,6 +19,7 @@ You MUST also read **[`docs/seo-first-marketing-website.md`](./docs/seo-first-ma
 
 ### 1. Project Requirements
 - Node.js 18.x or higher
+- [pnpm](https://pnpm.io/) 10.x or higher (install with `corepack enable` or `npm install -g pnpm`)
 
 ### 2. Environment Variables
 Create a `.env` file in the root from `.env.example`:
@@ -29,12 +30,12 @@ Fill in your `PUBLIC_SANITY_PROJECT_ID` and dataset variables.
 
 ### 3. Install Dependencies
 ```bash
-npm install
+pnpm install
 ```
 
 ### 4. Run Frontend Development Server
 ```bash
-npm run dev
+pnpm run dev
 ```
 The site will be available at `http://localhost:4321`.
 
@@ -42,8 +43,8 @@ The site will be available at `http://localhost:4321`.
 The CMS operates completely independently from the Astro frontend:
 ```bash
 cd studio
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 The studio will be available at `http://localhost:3333`.
 

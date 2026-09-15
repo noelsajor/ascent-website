@@ -29,7 +29,7 @@ A commit message should consist of a type, an optional scope, and a subject.
 - `style`: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, CSS styling tweaks).
 - `refactor`: A code change that neither fixes a bug nor adds a feature (e.g., renaming a variable, moving a component).
 - `perf`: A code change that improves site performance.
-- `build`: Changes that affect the build system or external dependencies (Vercel, NPM).
+- `build`: Changes that affect the build system or external dependencies (Vercel, pnpm).
 
 **Examples of Good Commits:**
 ✅ `feat(header): add dynamic background transparency on scroll`

@@ -8,8 +8,8 @@ Run Lighthouse (in Google Chrome Developer Tools via an "Incognito" window or vi
 
 To generate a local production build to test:
 ```bash
-npm run build
-npm run preview
+pnpm run build
+pnpm run preview
 ```
 ### Required Passing Targets:
 - **Performance**: 90+
@@ -60,5 +60,5 @@ Because this is a decoupled architecture, updating content in the Sanity CMS Stu
   - Search the payload for known secret variables (e.g., Sanity Write Tokens, Stripe Secrets). If they appear in the payload, you have breached rule #1 (`PUBLIC_` prefix rules).
 - **Form Injection Testing**:
   - Perform manual QA on any `<form>` element by submitting fake JSON strings, basic XSS payloads (`<script>alert(1)</script>`), or invalid characters. Confirm that the backend securely handles/sanitizes them and the site does not crash or render the payload locally.
-- **NPM Package Auditing**:
-  - Before a final push, you must run `npm audit`. Remediate any High or Critical vulnerabilities in your dependencies before clearing the task.
+- **Package Auditing**:
+  - Before a final push, you must run `pnpm audit`. Remediate any High or Critical vulnerabilities in your dependencies before clearing the task.

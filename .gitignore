@@ -5,6 +5,10 @@ dist/
 # dependencies
 node_modules/
 
+# this project uses pnpm — ignore other package managers' lockfiles
+package-lock.json
+yarn.lock
+
 # local env files
 .env
 .env.local

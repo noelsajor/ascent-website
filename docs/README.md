@@ -25,7 +25,7 @@ That framework enforces 9 strict engineering standard operating procedures (loca
 The AI will handle 90-95% of the heavy lifting. It will scrub out the old brand assets, re-route the CSS, correctly inject tracking snippets, and build out your requested pages securely.
 
 ### Step 3: Polish and QA
-Once the agent finishes the *First Kick*, you can interact with it further to polish any padding, copy, or UI elements. Before you hit `npm run deploy`, manually verify the work against the **[`Pre-Launch QA Checklist`](./best-practices/04-testing-qa-checklist.md)** to ensure maximum Lighthouse scores.
+Once the agent finishes the *First Kick*, you can interact with it further to polish any padding, copy, or UI elements. Before you hit `pnpm run deploy`, manually verify the work against the **[`Pre-Launch QA Checklist`](./best-practices/04-testing-qa-checklist.md)** to ensure maximum Lighthouse scores.
 
 ### Step 4: The Client Handoff
 Once the website is live, do not just send the client a URL.

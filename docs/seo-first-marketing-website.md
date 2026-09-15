@@ -162,9 +162,9 @@ The CMS requires specific schemas to function. Located in `/studio/schemas`:
 Create the base Astro project and install dependencies:
 
 ```bash
-npm create astro@latest ./new-brand-site -- --template minimal
+pnpm create astro@latest ./new-brand-site -- --template minimal
 cd new-brand-site
-npm install @astrojs/rss @sanity/client
+pnpm add @astrojs/rss @sanity/client
 ```
 
 Update `astro.config.mjs` to match the static generation pattern:
@@ -182,7 +182,7 @@ export default defineConfig({
 Inside the project root, scaffold the Sanity Studio:
 
 ```bash
-npm create sanity@latest -- --template clean --create-project "New Brand Name" --dataset production ./studio
+pnpm create sanity@latest -- --template clean --create-project "New Brand Name" --dataset production ./studio
 ```
 > [!IMPORTANT]
 > Change directory into `studio` (`cd studio`) and start the developer server there when modifying the CMS schema. The Studio runs completely independently of the Astro frontend.

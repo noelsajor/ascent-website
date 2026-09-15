@@ -58,7 +58,8 @@ You need to host the Sanity Editor GUI so clients/content managers can log in.
 2. **Root Directory**: Click "Edit" and set the directory to **`studio`**.
 3. **Build Settings**:
     *   Framework Preset: **Vite**.
-    *   Build Command: `npm run build`
+    *   Install Command: `pnpm install`
+    *   Build Command: `pnpm run build`
     *   Output Directory: `dist`
 4. Add Environment Variables specifically for the studio:
     *   `SANITY_STUDIO_PROJECT_ID`: `your_project_id`
@@ -69,7 +70,7 @@ You need to host the Sanity Editor GUI so clients/content managers can log in.
 Open your terminal in the `studio` folder:
 ```bash
 cd studio
-npx sanity deploy
+pnpm exec sanity deploy
 ```
 Follow the prompts to choose a URL (e.g., `yourbrand.sanity.studio`).
 
