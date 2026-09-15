@@ -106,12 +106,13 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Added `Rule.required().custom(...)` validation to the `slug` field in `studio/schemas/post.js` restricting it to `^[a-z0-9]+(?:-[a-z0-9]+)*$` (lowercase letters, digits, hyphens only) — editors can no longer save a slug with XML/URL-breaking characters. Added `escapeXml()` plus `encodeURIComponent()` around the interpolated slug in `sitemap.xml.js` as defense in depth for any pre-existing data that predates the new validation.
   - **Verification**: `pnpm run build` passes; `dist/sitemap.xml` still parses as valid XML. Tested the escaping directly against `a"><script>alert(1)</script><x y="&z` — output is fully percent-encoded with no raw `<`, `>`, `&`, or `"` surviving.
 
-- [ ] **Vision plugin enabled in all Studio environments**
+- [ ] **Vision plugin enabled in all Studio environments** *(code change written, HELD — not committed, pending user verification)*
   - **Severity**: Medium
-  - **Where**: `studio/sanity.config.js:3,8`
+  - **Where**: `studio/sanity.config.js` (uncommitted local change as of this writing)
   - **Current danger**: Authenticated Studio users can run arbitrary GROQ queries through Vision within their permissions. Useful for developers, but too broad for production editorial environments.
-  - **Fix**: Enable `visionTool()` only in development or restrict it to admin-only Studio deployments.
-  - **Verification**: Production Studio does not expose Vision to normal editorial users.
+  - **Fix (written, not yet committed)**: Changed `plugins: [deskTool(), visionTool()]` to `plugins: [deskTool(), ...(import.meta.env.DEV ? [visionTool()] : [])]` across all three workspaces (shared `commonConfig`). Sanity Studio's config is processed through Vite (confirmed `"vite": "^6.3.5"` in `studio/package.json`'s resolved deps), so `import.meta.env.DEV` is true under `sanity dev` and false under a `sanity build`/deployed build — Vision is excluded from the production bundle entirely, not just hidden.
+  - **PENDING — action needed from you**: This change is deliberately **held out of the commit history** at your request until you can verify it yourself. Studio's build/dev commands are broken in this environment (the pre-existing `yargs`/Node v26 issue), so I could not run `sanity build` and inspect the output bundle for Vision's absence, or run `sanity dev` to confirm Vision still appears locally for developers. On a machine with a working Node LTS: run `sanity dev` and confirm Vision is still available, then run `sanity build` and confirm the Vision tool is absent from the production bundle/deployed Studio. Once confirmed, ask me to commit `studio/sanity.config.js`, or apply it yourself.
+  - **Verification**: Not yet performed (see above).
 
 - [ ] **DMARC policy is monitoring-only**
   - **Severity**: Medium
@@ -136,12 +137,12 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Remove the fake form and rely on Calendly, or wire it to a real endpoint with server-side validation, rate limiting, spam protection, and privacy disclosure.
   - **Verification**: Success appears only after confirmed backend receipt, or the form is removed.
 
-- [ ] **Duplicate and global Calendly script loading**
+- [x] **Duplicate and global Calendly script loading**
   - **Severity**: Low
-  - **Where**: `src/components/Header.astro:155`, `src/components/Contact.astro:115`
+  - **Where**: `src/components/Header.astro`, `src/components/Contact.astro`
   - **Current danger**: The same third-party script loads globally and again on the contact page, increasing third-party execution surface and potential reliability issues.
-  - **Fix**: Load Calendly once, preferably lazily only when a Calendly trigger or widget exists.
-  - **Verification**: Contact and header booking flows still work with only one Calendly script request.
+  - **Fix**: Removed the duplicate `<script src="https://assets.calendly.com/assets/external/widget.js">` from `Contact.astro`. `Header.astro`'s copy (loaded globally via `BaseLayout` on every page) already scans the whole document for both `.calendly-trigger` and `.calendly-inline-widget` elements, so Contact's inline widget doesn't need its own copy.
+  - **Verification**: `pnpm run build` passes; confirmed in the built `dist/contact/index.html` that the Calendly script now loads exactly once (was 2), while the `.calendly-inline-widget`/`.calendly-trigger` elements are still present and unchanged.
 
 - [x] **Obsolete `X-XSS-Protection` header**
   - **Severity**: Low
