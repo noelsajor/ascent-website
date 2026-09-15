@@ -8,7 +8,9 @@ This is now substantially more complete, but it still cannot prove that these ar
 
 ## Status Summary (updated 2026-09-15)
 
-**Done (12 of 27 tracked items):** blog Portable Text XSS, JSON-LD script-breakout XSS, unprotected `main` branch, env-leak/`.gitignore` gap, GA-before-consent ordering, RSS XML injection, sitemap XML injection, duplicate Calendly script, obsolete `X-XSS-Protection`, missing `Permissions-Policy`, tracked Sanity runtime files, Astro generator disclosure.
+**Done (14 of 27 tracked items):** blog Portable Text XSS, JSON-LD script-breakout XSS, unprotected `main` branch, env-leak/`.gitignore` gap, GA-before-consent ordering, RSS XML injection, sitemap XML injection, duplicate Calendly script, obsolete `X-XSS-Protection`, missing `Permissions-Policy`, tracked Sanity runtime files, Astro generator disclosure, wildcard CORS (site + Studio), security.txt (confirmed live 200 — see note below).
+
+**Note on tooling access**: this session turned out to have more live access than initially assumed — outbound network access (`curl`), the Vercel API/CLI (project settings, deployment protection, DNS record management via `vercel dns`), and `vercel curl` for testing protected preview deployments. Several items previously marked "can't verify from this environment" have since been checked directly against production.
 
 **Shipped but not fully verified (needs a live browser/deploy check before considering closed):**
 - Public-site CSP and Studio headers — both live as `Content-Security-Policy-Report-Only`, not yet flipped to enforcing.
@@ -26,8 +28,7 @@ This is now substantially more complete, but it still cannot prove that these ar
 - Fake contact form success state (remove the form, or wire up a real submission endpoint).
 
 **Skipped — can't be verified or fixed from this environment:**
-- Wildcard CORS on public static responses (live Vercel platform behavior, no deployed instance here to test against).
-- DMARC, DNSSEC, MTA-STS, TLS reporting (DNS records, not repo config).
+- DMARC, DNSSEC, MTA-STS, TLS reporting (DNS records, not repo config — see below, DNS access has since been confirmed available).
 
 **Out-of-scope backlog (unchanged, needs access this session doesn't have):** authenticated Sanity roles/permissions, Vercel project settings and env vars, deployed Studio access control, cloud IAM/third-party integration review, secret rotation status, active penetration testing.
 
@@ -148,12 +149,12 @@ This is now substantially more complete, but it still cannot prove that these ar
 
 ## Low Priority And Hygiene
 
-- [ ] **Wildcard CORS on public static responses**
+- [x] **Wildcard CORS on public static responses**
   - **Severity**: Low
-  - **Where**: Live Vercel responses include `Access-Control-Allow-Origin: *`
+  - **Where**: `vercel.json`, `studio/vercel.json`
   - **Current danger**: Any origin can read public static GET responses. This is low risk today because responses are public, and preflighted writes were not authorized, but it can become dangerous if private/API responses later inherit the same behavior.
-  - **Fix**: Remove wildcard CORS unless intentionally required. If needed, scope CORS to exact paths and trusted origins.
-  - **Verification**: `curl -I -H 'Origin: https://evil.example' https://ascentmgnt.com/` no longer returns wildcard CORS, or only approved paths do.
+  - **Fix**: Confirmed via `curl` that `Access-Control-Allow-Origin: *` was a Vercel platform default (present on the homepage, a static asset, and favicon.svg — not set anywhere in this repo), reproduced on both `ascentmgnt.com` and `studio.ascentmgnt.com`. Added an explicit `Access-Control-Allow-Origin` header in both `vercel.json` (→ `https://ascentmgnt.com`) and `studio/vercel.json` (→ `https://studio.ascentmgnt.com`), which takes precedence over the platform default.
+  - **Verification**: Verified live against the **protected dev preview deployments** for both projects using `vercel curl` (per the `access-protected-vercel-deployment` skill, since preview URLs require Vercel SSO auth that plain `curl` can't pass): both now return their own canonical origin instead of `*`. Not yet re-verified against the production domains after merge to `main`.
 
 - [ ] **Fake contact form success state**
   - **Severity**: Low security, medium business integrity
@@ -197,12 +198,12 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Removed `<meta name="generator" content={Astro.generator} />`.
   - **Verification**: `pnpm run build` passes; confirmed `dist/index.html` no longer contains a `name="generator"` meta tag.
 
-- [ ] **No public security disclosure contact** *(fixed, needs live 200-check after deploy)*
+- [x] **No public security disclosure contact**
   - **Severity**: Low
   - **Where**: `/.well-known/security.txt` returns 404
   - **Current danger**: Security researchers have no standardized contact or disclosure policy.
   - **Fix**: Added `public/.well-known/security.txt` (RFC 9116) with `Contact: mailto:noelsajor@gmail.com` (confirmed with the site owner — no other security/support contact existed anywhere in the codebase), `Expires` one year out, `Preferred-Languages: en`, and a `Canonical` URL.
-  - **Verification**: `pnpm run build` passes; confirmed the file is copied verbatim into `dist/.well-known/security.txt`. **Live 200 check still pending** — needs confirming against the deployed site, no live environment available here.
+  - **Verification**: `pnpm run build` passes; confirmed the file is copied verbatim into `dist/.well-known/security.txt`. Confirmed live via `curl -o /dev/null -w '%{http_code}' https://ascentmgnt.com/.well-known/security.txt` → `200`.
 
 - [ ] **DNSSEC, MTA-STS, and TLS reporting are not configured**
   - **Severity**: Low
