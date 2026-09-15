@@ -6,6 +6,31 @@ This tracker converts the September 2026 read-only security audit into accountab
 
 This is now substantially more complete, but it still cannot prove that these are the only possible issues. Authenticated Sanity roles, Vercel environment/settings, deployed Studio behavior, cloud IAM, secret values, and active penetration testing were outside the passive read-only scope.
 
+## Status Summary (updated 2026-09-15)
+
+**Done (12 of 27 tracked items):** blog Portable Text XSS, JSON-LD script-breakout XSS, unprotected `main` branch, env-leak/`.gitignore` gap, GA-before-consent ordering, RSS XML injection, sitemap XML injection, duplicate Calendly script, obsolete `X-XSS-Protection`, missing `Permissions-Policy`, tracked Sanity runtime files, Astro generator disclosure.
+
+**Shipped but not fully verified (needs a live browser/deploy check before considering closed):**
+- Public-site CSP and Studio headers — both live as `Content-Security-Policy-Report-Only`, not yet flipped to enforcing.
+- `security.txt` — builds correctly, live 200-response not yet confirmed.
+
+**Held at your request (code written, deliberately NOT committed):**
+- Vision plugin dev-only gating in `studio/sanity.config.js` — sitting as an uncommitted local change pending your own `sanity dev`/`sanity build` verification, since Studio's build is broken in this environment. Ask me to commit it once you've checked it, or apply it yourself.
+
+**Partially fixed, real work remains:**
+- Root dependency stack — safe transitive patches applied (53→18 advisories); the rest needs a deliberate Astro 4→7 major-version migration.
+- Studio dependency stack — patching deferred entirely; Studio's build is broken here independent of any dependency change, so overrides can't be verified safely.
+- Dependabot/CI — Dependabot alerts + security updates are enabled (live GitHub setting); no CI workflow exists yet to add required status checks.
+
+**Not started — needs a decision from you:**
+- Fake contact form success state (remove the form, or wire up a real submission endpoint).
+
+**Skipped — can't be verified or fixed from this environment:**
+- Wildcard CORS on public static responses (live Vercel platform behavior, no deployed instance here to test against).
+- DMARC, DNSSEC, MTA-STS, TLS reporting (DNS records, not repo config).
+
+**Out-of-scope backlog (unchanged, needs access this session doesn't have):** authenticated Sanity roles/permissions, Vercel project settings and env vars, deployed Studio access control, cloud IAM/third-party integration review, secret rotation status, active penetration testing.
+
 ## Priority Order
 
 1. Fix confirmed XSS paths.
