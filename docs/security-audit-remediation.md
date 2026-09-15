@@ -85,12 +85,12 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Remaining**: No CI workflow exists yet (`.github/workflows/` is empty) to build root + Studio and run `pnpm audit` on PRs, and `main`'s branch protection has no required status checks (deliberately, since none exist — see the branch protection item above). Adding CI is a separate, larger task: it needs decisions about which Node version to pin (this environment's local Node v26.7.0 breaks Studio's build; CI should almost certainly pin a Node LTS instead) and what should block a merge vs. just warn.
   - **Verification**: `gh api repos/noelsajor/ascent-website --jq '.security_and_analysis'` shows `dependabot_security_updates.status: "enabled"`; `gh api repos/noelsajor/ascent-website/vulnerability-alerts` returns `204`. CI/required-checks verification still pending.
 
-- [ ] **Google Analytics loads before Cookiebot consent**
+- [x] **Google Analytics loads before Cookiebot consent**
   - **Severity**: Medium
-  - **Where**: `src/layouts/BaseLayout.astro:27-36`
+  - **Where**: `src/layouts/BaseLayout.astro`
   - **Current danger**: GA loads and configures before Cookiebot, so analytics may run before visitor consent. This is a privacy/compliance risk, especially for GDPR/CCPA visitors.
-  - **Fix**: Default Google Consent Mode to denied, load GA only through Cookiebot consent categories, and run `gtag('config')` only after appropriate consent.
-  - **Verification**: Before consent, no analytics cookies/events are sent; after statistics consent, GA loads and sends events.
+  - **Fix**: Reordered so a Google Consent Mode default-deny script (`ad_storage`, `ad_user_data`, `ad_personalization`, `analytics_storage` all `'denied'`) runs first, then Cookiebot loads, then the gtag script and its config — the gtag script now carries `data-cookieconsent="statistics"` and the config script is `type="text/plain" data-cookieconsent="statistics"`, so Cookiebot's `data-blockingmode="auto"` holds both dormant until the visitor grants statistics consent. Added a CSP `sha256-...` hash in `vercel.json` for the consent-default script so it doesn't need `'unsafe-inline'` (documented in a code comment to regenerate the hash if the script content changes).
+  - **Verification**: `pnpm run build` passes; confirmed via the built `dist/index.html` that script order is now consent-default → Cookiebot → gtag (tagged) → gtag config (`text/plain`, tagged), and that the CSP hash matches the actual rendered script content byte-for-byte. **Not yet verified live** — confirming no analytics events actually fire pre-consent, and that they do fire post-consent, needs a real browser + network tab against the deployed site.
 
 - [x] **RSS XML injection advisory**
   - **Severity**: Medium
