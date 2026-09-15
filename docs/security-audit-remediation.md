@@ -63,19 +63,19 @@ This is now substantially more complete, but it still cannot prove that these ar
 
 ## Medium Priority
 
-- [ ] **Missing public-site Content Security Policy**
+- [ ] **Missing public-site Content Security Policy** *(Report-Only shipped, not yet enforced)*
   - **Severity**: Medium
   - **Where**: `vercel.json`
   - **Current danger**: Confirmed XSS paths and third-party scripts have no browser-level containment. If injected or compromised JavaScript lands, the browser has no site policy limiting script execution, outbound connections, frames, or resource loading.
-  - **Fix**: Add `Content-Security-Policy-Report-Only` first, tune it for Astro, Google Tag Manager, Cookiebot, Calendly, YouTube embeds, Google Fonts, and Sanity image CDN, then enforce with hashes or nonces where needed.
-  - **Verification**: Live responses include CSP; SecurityHeaders.com reports CSP present; key pages still work without console CSP violations except expected report-only tuning events.
+  - **Fix**: Added `Content-Security-Policy-Report-Only`, tuned by grepping every external host actually referenced in `src/`/`public/` and classifying each by real usage (script src, stylesheet, iframe, or plain `<a href>` link, which CSP doesn't govern): `script-src`/`connect-src` cover GTM, Cookiebot, and Calendly's widget; `frame-src` covers YouTube (`youtube-nocookie.com`) and Calendly's popup (confirmed via `Header.astro`'s `Calendly.initPopupWidget` call, not just its plain link hrefs); `style-src` needs `'unsafe-inline'` because Astro compiles scoped component `<style>` blocks and some dynamic `style=` attributes inline (nonces aren't possible for a fully static/no-adapter build, and per-block hashes would be too fragile against routine content edits). Confirmed via the built `dist/index.html` that all real `<script>` tags are same-origin (`/_astro/hoisted-*.js`, from Astro's own hoisting) or one of the explicitly allowed external hosts — no `'unsafe-inline'` needed on `script-src`.
+  - **Verification**: `pnpm run build` passes; JSON-validated the header value structurally. **Not yet verified against real browser console violations** — there's no deployed environment or report-collection endpoint available in this session. Before flipping to enforcing `Content-Security-Policy`, open the deployed site in DevTools across all page types (home, blog post, contact) and confirm the console shows no unexpected violations, only the pages behaving normally.
 
-- [ ] **Missing Sanity Studio security headers**
+- [ ] **Missing Sanity Studio security headers** *(Report-Only headers shipped, needs live tuning)*
   - **Severity**: Medium
   - **Where**: `studio/vercel.json`
   - **Current danger**: A deployed Studio lacks explicit clickjacking, content-type, referrer, permissions, and script-hardening headers. This is riskier than the public site because Studio is an authenticated admin/editor interface.
-  - **Fix**: Add Studio-specific headers, including CSP, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, strict referrer policy, and a restrictive `Permissions-Policy`.
-  - **Verification**: Deployed Studio responses include the headers and Studio login/editor flows still work.
+  - **Fix**: Added `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`, and a minimal `Content-Security-Policy-Report-Only` (`default-src 'self'; frame-ancestors 'none'`). Deliberately kept the CSP minimal rather than guessing at Sanity's full script/style/API surface — Studio's build is currently broken in this environment (the pre-existing `yargs`/Node v26 issue), so it can't be run locally to observe its real network calls.
+  - **Verification**: JSON-validated the config structurally. **Not yet verified live** — once Studio can actually run (either on a Node LTS version or once deployed), open it in DevTools, log in, and exercise the editor to see which additional hosts the report-only CSP flags (Sanity's own API/CDN domains, `api.sanity.io`, etc.), then tighten `default-src 'self'` into explicit directives before enforcing.
 
 - [ ] **Dependabot and automated security checks disabled or absent**
   - **Severity**: Medium
@@ -142,19 +142,19 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Load Calendly once, preferably lazily only when a Calendly trigger or widget exists.
   - **Verification**: Contact and header booking flows still work with only one Calendly script request.
 
-- [ ] **Obsolete `X-XSS-Protection` header**
+- [x] **Obsolete `X-XSS-Protection` header**
   - **Severity**: Low
-  - **Where**: `vercel.json:8`
+  - **Where**: `vercel.json`
   - **Current danger**: The header is obsolete and ignored by modern browsers; in legacy browsers it can cause inconsistent behavior. It is not a real substitute for CSP.
-  - **Fix**: Remove it or set `X-XSS-Protection: 0` after CSP is handled.
-  - **Verification**: Live responses no longer advertise legacy XSS filtering as a control.
+  - **Fix**: Changed `X-XSS-Protection: 1; mode=block` to `X-XSS-Protection: 0`, done together with adding the CSP header above.
+  - **Verification**: Confirmed the new value in `vercel.json`; will show on live responses once deployed.
 
-- [ ] **Missing `Permissions-Policy`**
+- [x] **Missing `Permissions-Policy`**
   - **Severity**: Low
   - **Where**: `vercel.json`, `studio/vercel.json`
   - **Current danger**: Browser APIs such as camera, microphone, geolocation, payment, and USB are not explicitly disabled.
-  - **Fix**: Add a restrictive policy such as `camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()` and adjust only if a feature truly needs access.
-  - **Verification**: Live responses include `Permissions-Policy`.
+  - **Fix**: Added `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()` to both `vercel.json` and `studio/vercel.json`.
+  - **Verification**: Confirmed the header in both config files; will show on live responses once deployed.
 
 - [ ] **Generated Sanity runtime files are tracked**
   - **Severity**: Low
