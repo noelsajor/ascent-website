@@ -245,10 +245,11 @@ Found while doing the live CSP browser check below — neither is a code/securit
   - **How to solve**: Review Sanity project members, roles, tokens, CORS origins, dataset visibility, and deploy hooks. Enforce least privilege and rotate stale tokens.
   - **Verification**: Only required users and tokens remain; write tokens are scoped; untrusted origins are rejected.
 
-- [ ] **Vercel project settings and environment variables**
+- [ ] **Vercel project settings and environment variables** *(partially verified)*
   - **Danger if unresolved**: Misconfigured env vars, overly broad team access, leaked deploy hooks, or preview settings can expose secrets or deploy unsafe builds.
   - **How to solve**: Review Vercel team/project access, environment variables, deploy hooks, domains, preview protections, build logs, and integration permissions.
-  - **Verification**: Least-privilege project access, no stale deploy hooks, no secret values in logs, and preview/production settings match policy.
+  - **Progress**: Checked via `vercel env ls` on both projects — root site only has `PUBLIC_SANITY_*` vars (project ID, dataset, API version, CDN flag), Studio only has `SANITY_STUDIO_*_PROJECT_ID`/`SANITY_STUDIO_DATASET`. Both sets are meant-to-be-public identifiers, not secrets, and no write tokens or API keys are exposed to either project — good least-privilege posture. Both projects run **Node 24.x LTS** (confirmed via the Vercel API), not this local machine's broken Node v26.7.0 — meaning several fixes reverted earlier in this session for local-build-breakage reasons (`@babel/core`/`js-yaml` overrides, Studio's `yargs` crash) likely aren't real problems in production and are worth retrying. Deployment protection: SSO enabled for preview URLs, correctly excluded for the custom domains (`ascentmgnt.com`, `studio.ascentmgnt.com`) — matches intended public-site/Sanity-gated-Studio design. Domains map correctly (one project per domain, no stray aliases). **Not yet verified**: deploy hooks (attempted via direct API call, got an auth error — the CLI's auto-injected auth apparently doesn't cover the general REST API the way it does deployment URLs; needs the Vercel dashboard or a properly authenticated API call), team member list/roles, and build log content for accidentally logged secrets.
+  - **Verification**: Least-privilege project access (✅ confirmed for env vars); no stale deploy hooks (not yet checked); no secret values in logs (not yet checked); preview/production settings match policy (✅ confirmed).
 
 - [ ] **Deployed Studio behavior and access control** *(partially verified)*
   - **Danger if unresolved**: A public Studio URL with weak controls increases phishing, clickjacking, content tampering, and authenticated app attack surface.
