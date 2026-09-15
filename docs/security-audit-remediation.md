@@ -31,19 +31,21 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Added a `safeJsonLd()` serializer that escapes `<`, `>`, `&`, U+2028, and U+2029 before `set:html`, and routed all four `set:html={JSON.stringify(...)}` call sites through it.
   - **Verification**: Ran the serializer directly against `</script><script>alert(document.domain)</script>` — output contains no raw `</script>`, only `</script>...`, and still round-trips through `JSON.parse` correctly. Confirmed in the actual `pnpm run build` output (`dist/index.html`) that a real page description containing `&` renders as `&` in the live JSON-LD tags.
 
-- [ ] **Vulnerable root dependency stack**
+- [ ] **Vulnerable root dependency stack** *(partially fixed — safe patches applied, major Astro bump still open)*
   - **Severity**: High
-  - **Where**: `package.json`, `package-lock.json`
-  - **Current danger**: `pnpm audit` (root now uses pnpm, formerly npm) reports 17 root advisories including 1 critical. Some Astro advisories are lower live-runtime risk because `astro.config.mjs` uses `output: 'static'`, but build-time, image-processing, dev-server, RSS, and supply-chain risks remain real.
-  - **Fix**: Run a controlled upgrade path. Apply non-breaking fixes first, upgrade `@astrojs/rss` to a patched version, then plan and test the major Astro migration required by remaining advisories.
-  - **Verification**: `pnpm audit` has no high/critical findings that apply to production, build, CI, or dev workflows; `pnpm run build` passes after upgrades.
+  - **Where**: `package.json`, `pnpm-lock.yaml`
+  - **Current danger**: `pnpm audit` originally reported 53 advisories (1 critical, 22 high, 23 moderate, 7 low) — a higher count than npm's 17 because pnpm resolves/reports the dependency graph more granularly; same underlying issues either way. Some Astro advisories are lower live-runtime risk because `astro.config.mjs` uses `output: 'static'`, but build-time, image-processing, dev-server, RSS, and supply-chain risks remain real.
+  - **Fix applied so far**: Bumped `@astrojs/rss` to `^4.0.19` (patched). Added `pnpm.overrides` in `package.json` pinning safe, same-major patched versions of transitive deps: `devalue`, `sharp`, `postcss`, `postcss-selector-parser`, `nanoid`, `browserslist`, `baseline-browser-mapping`, `vite`, `esbuild`, `follow-redirects`. Explicitly did **not** override `@babel/core` or `js-yaml` — both broke the build with `does not provide an export named 'default'` errors (an ESM/CJS interop issue under this machine's Node v26.7.0) when bumped to their patched versions, so those two advisories remain open rather than risk a silent break.
+  - **Remaining**: All remaining advisories (now 1 critical, 3 high, 10 moderate, 4 low) are attributed to `astro` itself — the patched versions require jumping from the installed 4.16.19 across three majors (5, 6, 7) to reach `>=7.2.8`. This is a deliberate, separately-planned migration (breaking changes, needs full manual QA per `docs/best-practices/04-testing-qa-checklist.md` since there's no automated test suite) — not yet started.
+  - **Verification**: `pnpm run build` passes and `dist/rss.xml` / `dist/sitemap.xml` remain valid XML after the safe patches. Full closure still requires the major Astro migration plus retesting `@babel/core`/`js-yaml` on a stable Node LTS version (the export-interop failure may be specific to this machine's non-LTS Node build).
 
-- [ ] **Vulnerable Sanity Studio dependency stack**
+- [ ] **Vulnerable Sanity Studio dependency stack** *(patching blocked — see note)*
   - **Severity**: High
-  - **Where**: `studio/package.json`, `studio/package-lock.json`
-  - **Current danger**: `pnpm audit` (studio now uses pnpm, formerly npm) reports 38 Studio advisories including 2 critical. Highest relevance is Studio runtime, CLI/build tooling, archive extraction, Vite/dev-server behavior, and CI compromise paths.
-  - **Fix**: Upgrade the Studio stack deliberately, likely through a major Sanity migration, and test schemas, workspaces, build output, authentication, and deployed Studio behavior.
-  - **Verification**: `pnpm audit` in `studio/` has no high/critical findings that apply to runtime, build, CI, or dev workflows; `pnpm run build` in `studio/` passes. Note: `pnpm run build` (and equally `npm run build`, confirmed identical) currently fails locally on Node v26.7.0 with a pre-existing, unrelated `yargs` ESM/CJS resolution error — retest on the Node LTS version actually used by Vercel before relying on this check.
+  - **Where**: `studio/package.json`, `studio/pnpm-lock.yaml`
+  - **Current danger**: `pnpm audit` in `studio/` (isolated, after removing an accidental root-level `pnpm-workspace.yaml` that had merged it with the root project) reports 109 advisories across 23 packages: 2 critical (`decompress`, `tar` — Zip Slip-style archive-extraction CVEs reachable via `sanity dataset export`/`@sanity/vision` CLI tooling), 43 high, 55 moderate, 9 low. Also affects `@babel/core`, `js-yaml`, `vite`, `browserslist`, `nanoid`, `postcss`, `follow-redirects`, `baseline-browser-mapping`, `adm-zip`, `brace-expansion`, `dompurify`, `form-data`, `glob`, `json-2-csv`, `lodash`, `lodash-es`, `prismjs`, `undici`, `uuid`, `ws`, `yaml`.
+  - **Why patching is blocked right now**: `pnpm run build` in `studio/` already fails independent of any dependency change (pre-existing `yargs` ESM/CJS resolution error under this machine's Node v26.7.0 — see the dependency-stack item above). Root's equivalent patch pass just proved that even "safe" same-major patch bumps (`@babel/core`, `js-yaml`) can silently break Astro's build via ESM/CJS export-interop issues on this Node version — the same class of failure is plausible here, and with no working build there is no way to verify an override doesn't break Studio. Per explicit decision, deferred rather than applying unverified overrides.
+  - **Fix**: Once a stable Node LTS (22 or 24) is available to actually run `pnpm run build`/`pnpm run dev` in `studio/`, apply the same pattern as root: pin safe same-major patched versions via `pnpm.overrides` for packages that verify clean, then plan and test the larger Sanity Studio v3→v4 migration required for `decompress`/`tar`/`vite`-chain criticals that don't have a same-major fix.
+  - **Verification**: `pnpm audit` in `studio/` has no high/critical findings that apply to runtime, build, CI, or dev workflows; `pnpm run build` in `studio/` passes on a Node LTS version.
 
 - [ ] **Unprotected production branch**
   - **Severity**: High
@@ -89,12 +91,12 @@ This is now substantially more complete, but it still cannot prove that these ar
   - **Fix**: Default Google Consent Mode to denied, load GA only through Cookiebot consent categories, and run `gtag('config')` only after appropriate consent.
   - **Verification**: Before consent, no analytics cookies/events are sent; after statistics consent, GA loads and sends events.
 
-- [ ] **RSS XML injection advisory**
+- [x] **RSS XML injection advisory**
   - **Severity**: Medium
   - **Where**: `src/pages/rss.xml.js`, `@astrojs/rss@4.0.15`
   - **Current danger**: The installed RSS package version is affected by XML injection via unescaped RSS fields. The feed uses CMS-controlled title and description fields, so malformed or malicious XML can be generated.
-  - **Fix**: Upgrade `@astrojs/rss` to at least the patched `4.0.19` version and regenerate `package-lock.json`.
-  - **Verification**: `pnpm audit` no longer reports `@astrojs/rss`; feed output remains valid XML.
+  - **Fix**: Upgraded `@astrojs/rss` from `^4.0.1` (resolved 4.0.15) to `^4.0.19` (patched) in `package.json`; regenerated `pnpm-lock.yaml`.
+  - **Verification**: `pnpm audit` no longer reports `@astrojs/rss`; confirmed `dist/rss.xml` parses as valid XML after `pnpm run build`.
 
 - [ ] **Sitemap XML injection or malformed XML from CMS slugs**
   - **Severity**: Medium
